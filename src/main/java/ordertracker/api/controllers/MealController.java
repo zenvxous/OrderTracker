@@ -2,40 +2,47 @@ package ordertracker.api.controllers;
 
 import java.util.List;
 import ordertracker.core.models.Meal;
+import ordertracker.core.services.MealService;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 
 @RestController
 @RequestMapping("/api/meals")
 public class MealController {
-    private List<Meal> meals = List.of(
-            new Meal(0, "pizza", 100, 20),
-            new Meal(1, "fyrki", 50, 10),
-            new Meal(2, "sushi", 100, 30),
-            new Meal(3, "pasta", 25, 20));
+    private final MealService mealService;
+
+    public MealController(MealService mealService) {
+        this.mealService = mealService;
+    }
 
     @GetMapping
     public List<Meal> getAllMeals() {
-        return meals;
+        return mealService.getAllMeals();
     }
 
     @GetMapping("/{id}")
     public Meal getMealById(@PathVariable int id) {
-        return meals.stream()
-                .filter(meal -> meal.getId() == id)
-                .findFirst()
-                .orElse(null);
+        var response =  mealService.getMealById(id);
+
+        if (response == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parameter is missing");
+        }
+        return response;
     }
 
     @GetMapping("/by-name")
     public Meal getMealByName(@RequestParam String name) {
-        return meals.stream()
-                .filter(meal -> meal.getName().equals(name))
-                .findFirst()
-                .orElse(null);
+        var response = mealService.getMealByName(name);
+
+        if (response == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parameter is missing");
+        }
+        return response;
     }
 }
