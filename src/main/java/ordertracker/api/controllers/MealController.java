@@ -31,7 +31,7 @@ public class MealController {
         var response =  mealService.getMealById(id);
 
         if (response == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parameter is missing");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Incorrect meal id");
         }
         return response;
     }
@@ -41,7 +41,7 @@ public class MealController {
         var response = mealService.getMealByName(name);
 
         if (response == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Parameter is missing");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Incorrect meal id");
         }
         return response;
     }
