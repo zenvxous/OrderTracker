@@ -40,7 +40,7 @@ public class OrderController {
     }
 
     @PostMapping
-    public ResponseEntity<Order> addOrder(@RequestParam int customerId) {
+        public ResponseEntity<Order> addOrder(@RequestParam int customerId) {
         try {
             var savedOrder = orderService.addOrder(customerId);
             return ResponseEntity.status(HttpStatus.CREATED).body(savedOrder);
