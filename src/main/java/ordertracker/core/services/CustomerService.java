@@ -2,10 +2,13 @@ package ordertracker.core.services;
 
 import java.util.List;
 import java.util.Optional;
+import ordertracker.core.enums.OrderStatus;
 import ordertracker.core.models.Customer;
 
 public interface CustomerService {
     List<Customer> getAllCustomers();
+
+    List<Customer> getCustomersByOrderStatusAndMealName(OrderStatus status, String mealName);
 
     Optional<Customer> getCustomerById(int id);
 

@@ -1,6 +1,7 @@
 package ordertracker.api.controllers;
 
 import java.util.List;
+import ordertracker.core.enums.OrderStatus;
 import ordertracker.core.models.Customer;
 import ordertracker.core.services.CustomerService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -50,6 +52,18 @@ public class CustomerController {
         return customerService.getCustomerByPhoneNumber(phoneNumber)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/api/customers/filter/meal")
+    public ResponseEntity<List<Customer>> getCustomersByOrderStatusAndMealName(
+            @RequestParam OrderStatus status,
+            @RequestParam String mealName) {
+
+        List<Customer> customers = customerService.getCustomersByOrderStatusAndMealName(status, mealName);
+        if (customers.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(customers);
     }
 
     @PostMapping

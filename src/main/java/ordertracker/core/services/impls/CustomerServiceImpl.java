@@ -3,6 +3,11 @@ package ordertracker.core.services.impls;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import ordertracker.apllication.cache.InMemoryCache;
+import ordertracker.core.enums.OrderStatus;
 import ordertracker.core.models.Customer;
 import ordertracker.core.repositories.CustomerRepository;
 import ordertracker.core.services.CustomerService;
@@ -13,10 +18,16 @@ import org.springframework.stereotype.Service;
 public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
+    private final InMemoryCache<Integer, Customer> cache;
+    private final ScheduledExecutorService cacheCleaner = Executors.newScheduledThreadPool(1);
 
     @Autowired
-    public CustomerServiceImpl(CustomerRepository customerRepository) {
+    public CustomerServiceImpl(
+            CustomerRepository customerRepository,
+            InMemoryCache<Integer, Customer> customerCache) {
         this.customerRepository = customerRepository;
+        this.cache = customerCache;
+        cacheCleaner.scheduleAtFixedRate(cache::clear, 30, 30, TimeUnit.MINUTES);
     }
 
     @Override
@@ -25,8 +36,21 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
+    public List<Customer> getCustomersByOrderStatusAndMealName(OrderStatus status, String mealName) {
+        return customerRepository.findCustomersByOrderStatusAndMealName(status, mealName);
+    }
+
+    @Override
     public Optional<Customer> getCustomerById(int id) {
-        return customerRepository.findById(id);
+        Customer cachedCustomer = cache.get(id);
+
+        if (cachedCustomer != null) {
+            return Optional.of(cachedCustomer);
+        }
+
+        Optional<Customer> customer = customerRepository.findById(id);
+        customer.ifPresent(c -> cache.put(id, c));
+        return customer;
     }
 
     @Override
@@ -41,7 +65,11 @@ public class CustomerServiceImpl implements CustomerService {
 
     @Override
     public Customer addCustomer(Customer customer) {
-        return customerRepository.save(customer);
+        Customer savedCustomer = customerRepository.save(customer);
+
+        cache.put(savedCustomer.getId(), savedCustomer);
+
+        return savedCustomer;
     }
 
     @Override
@@ -49,10 +77,14 @@ public class CustomerServiceImpl implements CustomerService {
         var customer = getCustomerById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Customer not found with id: " + id));
 
-        customer.setId(customerDetails.getId());
         customer.setName(customerDetails.getName());
         customer.setPhoneNumber(customerDetails.getPhoneNumber());
-        return customerRepository.save(customer);
+        Customer updatedCustomer = customerRepository.save(customer);
+
+        cache.evict(id);
+        cache.put(id, updatedCustomer);
+
+        return updatedCustomer;
     }
 
     @Override
@@ -61,5 +93,6 @@ public class CustomerServiceImpl implements CustomerService {
                 .orElseThrow(() -> new EntityNotFoundException("Customer not found with id: " + id));
 
         customerRepository.delete(customer);
+        cache.evict(id);
     }
 }
