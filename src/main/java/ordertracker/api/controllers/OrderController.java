@@ -78,4 +78,14 @@ public class OrderController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    @DeleteMapping("/{id}/meals")
+    public ResponseEntity<Void> deleteOrderFood(@PathVariable int id, @RequestParam int mealId) {
+        try {
+            orderService.deleteMealInOrder(id, mealId);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

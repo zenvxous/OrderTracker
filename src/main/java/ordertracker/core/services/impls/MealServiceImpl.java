@@ -9,7 +9,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import ordertracker.apllication.cache.InMemoryCache;
 import ordertracker.core.models.Meal;
+import ordertracker.core.models.Order;
 import ordertracker.core.repositories.MealRepository;
+import ordertracker.core.repositories.OrderRepository;
 import ordertracker.core.services.MealService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -17,17 +19,23 @@ import org.springframework.stereotype.Service;
 @Service
 class MealServiceImpl implements MealService {
 
+    private final OrderRepository orderRepository;
     private final MealRepository mealRepository;
-    private final InMemoryCache<Integer, Meal> cache;
+    private final InMemoryCache<Integer, Meal> mealCache;
+    private final InMemoryCache<Integer, Order> orderCache;
     private final ScheduledExecutorService cacheCleaner = Executors.newScheduledThreadPool(1);
 
     @Autowired
     public MealServiceImpl(
+            OrderRepository orderRepository,
             MealRepository mealRepository,
-            InMemoryCache<Integer, Meal> mealCache) {
+            InMemoryCache<Integer, Meal> mealCache,
+            InMemoryCache<Integer, Order> orderCache) {
+        this.orderRepository = orderRepository;
         this.mealRepository = mealRepository;
-        this.cache = mealCache;
-        cacheCleaner.scheduleAtFixedRate(cache::clear, 30, 30, TimeUnit.MINUTES);
+        this.mealCache = mealCache;
+        this.orderCache = orderCache;
+        cacheCleaner.scheduleAtFixedRate(this.mealCache::clear, 30, 30, TimeUnit.MINUTES);
     }
 
     @Override
@@ -37,13 +45,13 @@ class MealServiceImpl implements MealService {
 
     @Override
     public Optional<Meal> getMealById(int id) {
-        Meal cachedMeal = cache.get(id);
+        Meal cachedMeal = mealCache.get(id);
         if (cachedMeal != null) {
             return Optional.of(cachedMeal);
         }
 
         return mealRepository.findById(id).map(meal -> {
-            cache.put(id, meal);
+            mealCache.put(id, meal);
             return meal;
         });
     }
@@ -56,7 +64,7 @@ class MealServiceImpl implements MealService {
     @Override
     public Meal addMeal(@Valid Meal meal) {
         Meal savedMeal = mealRepository.save(meal);
-        cache.put(savedMeal.getId(), savedMeal);
+        mealCache.put(savedMeal.getId(), savedMeal);
         return savedMeal;
     }
 
@@ -71,16 +79,24 @@ class MealServiceImpl implements MealService {
 
         Meal updatedMeal = mealRepository.save(meal);
 
-        cache.put(id, updatedMeal);
+        mealCache.put(id, updatedMeal);
         return updatedMeal;
     }
 
     @Override
     public void deleteMeal(int id) {
-        Meal meal = mealRepository.findById(id)
+        var meal = mealRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Meal not found with id: " + id));
+        var orders = orderRepository.findOrdersByMealId(id);
 
+        for (var order : orders) {
+            order.getMeals().remove(meal);
+        }
+
+        orderRepository.saveAll(orders);
         mealRepository.delete(meal);
-        cache.evict(id);
+
+        orderCache.clear();
+        mealCache.evict(id);
     }
 }

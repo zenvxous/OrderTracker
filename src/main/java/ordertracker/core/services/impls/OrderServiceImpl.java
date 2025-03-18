@@ -102,4 +102,16 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.delete(order);
         cache.evict(id);
     }
+
+    @Override
+    public void deleteMealInOrder(int orderId, int mealId) {
+        var order = getOrderById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException(NOT_FOUND_MESSAGE + orderId));
+        var meal = mealRepository.findById(mealId)
+                .orElseThrow(() -> new EntityNotFoundException("Meal not found with id: " + mealId));
+
+        order.getMeals().remove(meal);
+        orderRepository.save(order);
+        cache.evict(orderId);
+    }
 }
