@@ -47,4 +47,10 @@ public class Customer {
     public String toString() {
         return "Customer{" + "id=" + id + ", phoneNumber='" + phoneNumber + '\'' + ", name='" + name + '\'' + '}';
     }
+
+    public Customer(Integer id, String phoneNumber, String name) {
+        this.id = id;
+        this.phoneNumber = phoneNumber;
+        this.name = name;
+    }
 }
