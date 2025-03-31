@@ -84,6 +84,31 @@ public class MealController {
         return ResponseEntity.status(HttpStatus.CREATED).body(savedMeal);
     }
 
+    @Operation(summary = "Add multiple meals", description = "Creates multiple new meals in the system in one operation")
+    @ApiResponse(responseCode = "201", description = "Meals successfully created")
+    @ApiResponse(responseCode = "400", description = "Invalid input (e.g., ID provided for new meals)")
+    @ApiResponse(responseCode = "409", description = "One or more meals with same names already exist")
+    @PostMapping("/bulk")
+    public ResponseEntity<List<Meal>> addMeals(
+            @Parameter(description = "List of meal objects to be added", required = true)
+            @Valid @RequestBody List<Meal> meals) {
+        // Проверка на null и пустой список
+        if (meals == null || meals.isEmpty()) {
+            throw new BadRequestException("Meals list cannot be null or empty");
+        }
+
+        // Проверка наличия ID у любого из блюд
+        boolean anyMealHasId = meals.stream()
+                .anyMatch(meal -> meal.getId() != null);
+
+        if (anyMealHasId) {
+            throw new BadRequestException("IDs should not be provided for new meals");
+        }
+
+        List<Meal> savedMeals = mealService.addMeals(meals);
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedMeals);
+    }
+
     @Operation(summary = "Update meal", description = "Updates an existing meal's details")
     @ApiResponse(responseCode = "200", description = "Meal successfully updated")
     @ApiResponse(responseCode = "400", description = "Invalid ID or input data")

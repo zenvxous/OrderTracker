@@ -124,6 +124,21 @@ public class MealServiceImpl implements MealService {
     }
 
     @Override
+    public List<Meal> addMeals(List<Meal> meals) {
+        if (meals.stream().anyMatch(meal -> meal.getId() != null)) {
+            throw new IllegalArgumentException("IDs should not be provided for new meals");
+        }
+
+        return mealRepository.saveAll(meals).stream()
+                .map(meal -> {
+                    putMealInCache(meal.getId(), meal);
+                    logger.info("{}{}", ADDED_TO_CACHE_MESSAGE, meal.getId());
+                    return meal;
+                })
+                .toList();
+    }
+
+    @Override
     public Meal updateMeal(int id, Meal mealDetails) {
         Meal meal = mealRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException(NOT_FOUND_MESSAGE + id));

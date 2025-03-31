@@ -14,6 +14,8 @@ public interface MealService {
 
     Meal addMeal(Meal meal);
 
+    List<Meal> addMeals(List<Meal> meals);
+
     Meal updateMeal(int id, Meal mealDetails);
 
     void deleteMeal(int id);
