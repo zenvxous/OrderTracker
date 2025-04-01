@@ -33,13 +33,13 @@ public class LoggingAspect {
         }
     }
 
-    @AfterThrowing(pointcut = "execution(* ordertracker..*.*(..))",
+    @AfterThrowing(pointcut = "within(@org.springframework.web.bind.annotation.RestController *)",
             throwing = "ex")
     public void logAfterThrowing(JoinPoint joinPoint, Throwable ex) {
         if (logger.isErrorEnabled()) {
             logger.error("Exception in method: {} with message: {}",
                     joinPoint.getSignature().toShortString(),
-                    ex.getMessage());
+                    ex.getMessage(), ex); // Добавлен сам exception для stack trace
         }
     }
 }
