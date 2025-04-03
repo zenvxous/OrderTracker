@@ -13,12 +13,17 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import ordertracker.core.models.LogTask;
+import ordertracker.core.services.LogService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,6 +32,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/logs")
 @Tag(name = "Log controller", description = "Controller for managing and viewing application logs")
 public class LogController {
+
+    private final LogService logService;
+
+    @Autowired
+    public LogController(LogService logService) {
+        this.logService = logService;
+    }
 
     private static final String LOG_FILE_PATH = "./OrderTracker.log";
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -47,20 +59,17 @@ public class LogController {
             )
             @RequestParam(name = "date") String dateStr) throws IOException {
 
-        // Проверка формата даты
         try {
             LocalDate.parse(dateStr, DATE_FORMATTER);
         } catch (DateTimeParseException e) {
             return ResponseEntity.badRequest().build();
         }
 
-        // Проверка существования файла
         Path logPath = Paths.get(LOG_FILE_PATH);
         if (!Files.exists(logPath)) {
             return ResponseEntity.notFound().build();
         }
 
-        // Фильтрация логов по дате с использованием try-with-resources
         String filteredLogs;
         try (Stream<String> lines = Files.lines(logPath)) {
             filteredLogs = lines
@@ -98,13 +107,11 @@ public class LogController {
             return ResponseEntity.badRequest().build();
         }
 
-        // Check if file exists
         Path logPath = Paths.get(LOG_FILE_PATH);
         if (!Files.exists(logPath)) {
             return ResponseEntity.notFound().build();
         }
 
-        // Read and filter logs
         String filteredLogs;
         try (var lines = Files.lines(logPath)) {
             filteredLogs = lines
@@ -116,7 +123,6 @@ public class LogController {
             return ResponseEntity.notFound().build();
         }
 
-        // Create temp file for download
         Path tempLogFile = Files.createTempFile("logs-" + dateStr, ".log");
         Files.write(tempLogFile, filteredLogs.getBytes());
 
@@ -126,6 +132,47 @@ public class LogController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=logs-" + dateStr + ".log")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(resource);
+    }
+
+    @Operation(summary = "Create a new log task", description = "Creates a new log generation task and returns its ID")
+    @PostMapping
+    public ResponseEntity<String> createLog() {
+        LogTask task = logService.createLogTask();
+        return ResponseEntity.ok(task.getId());
+    }
+
+    @Operation(summary = "Get task status", description = "Returns the current status of a log generation task")
+    @ApiResponse(responseCode = "200", description = "Status returned successfully")
+    @ApiResponse(responseCode = "404", description = "Task not found")
+    @GetMapping("/{id}/status")
+    public ResponseEntity<String> getStatus(
+            @Parameter(description = "ID of the log task", required = true)
+            @PathVariable String id) {
+        LogTask task = logService.getTask(id);
+        if (task == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(task.getStatus());
+    }
+
+    @Operation(summary = "Download log file", description = "Downloads the generated log file if the task is complete")
+    @ApiResponse(responseCode = "200", description = "File returned successfully")
+    @ApiResponse(responseCode = "404", description = "Task not found or file not ready")
+    @GetMapping("/{id}/file")
+    public ResponseEntity<Resource> getFile(
+            @Parameter(description = "ID of the log task", required = true)
+            @PathVariable String id) throws IOException {
+        LogTask task = logService.getTask(id);
+        if (task == null || !"READY".equals(task.getStatus())) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Path filePath = task.getFilePath();
+        Resource resource = new UrlResource(filePath.toUri());
+
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"" + filePath.getFileName() + "\"")
                 .body(resource);
     }
 }
