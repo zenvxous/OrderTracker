@@ -16,6 +16,8 @@ public interface OrderService {
 
     Order addMealToOrder(int orderId, int mealId);
 
+    Order addMealsToOrder(int orderId, List<Integer> mealIds);
+
     void deleteOrder(int id);
 
     void deleteMealInOrder(int orderId, int mealId);

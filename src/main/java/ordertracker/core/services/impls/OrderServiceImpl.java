@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import ordertracker.core.enums.OrderStatus;
+import ordertracker.core.models.Meal;
 import ordertracker.core.models.Order;
 import ordertracker.core.repositories.CustomerRepository;
 import ordertracker.core.repositories.MealRepository;
@@ -68,6 +69,20 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new EntityNotFoundException("Meal not found with id: " + mealId));
 
         order.getMeals().add(meal);
+        return orderRepository.save(order);
+    }
+
+    @Override
+    public Order addMealsToOrder(int orderId, List<Integer> mealIds) {
+        var order = getOrderById(orderId)
+                .orElseThrow(() -> new EntityNotFoundException(NOT_FOUND_MESSAGE + orderId));
+
+        List<Meal> meals = mealIds.stream()
+                .map(mealId -> mealRepository.findById(mealId)
+                        .orElseThrow(() -> new EntityNotFoundException("Meal not found with id:" + mealId)))
+                .toList();
+
+        order.getMeals().addAll(meals);
         return orderRepository.save(order);
     }
 

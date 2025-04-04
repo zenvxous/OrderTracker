@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import ordertracker.core.enums.OrderStatus;
 import ordertracker.core.models.Customer;
+import ordertracker.core.models.Order;
 
 public interface CustomerService {
     List<Customer> getAllCustomers();
@@ -15,6 +16,10 @@ public interface CustomerService {
     Optional<Customer> getCustomerByPhoneNumber(String phoneNumber);
 
     Optional<Customer> getCustomerByName(String name);
+
+    List<Order> getCustomerOrders(int customerId);
+
+    Order createOrder(int customerId, List<Integer> mealIds);
 
     Customer addCustomer(Customer customer);
 

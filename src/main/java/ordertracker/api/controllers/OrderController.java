@@ -4,24 +4,30 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import java.util.List;
+import java.util.Map;
 import ordertracker.core.enums.OrderStatus;
+import ordertracker.core.exceptions.BadRequestException;
 import ordertracker.core.exceptions.ResourceNotFoundException;
 import ordertracker.core.models.Order;
 import ordertracker.core.services.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/api/orders")
 @Tag(name = "Order controller", description = "Controller for managing customer orders")
@@ -105,6 +111,26 @@ public class OrderController {
             throw new ResourceNotFoundException(
                     "Order not found with id: " + id + " or meal not found with id: " + mealId);
         }
+    }
+
+    @PutMapping("/{id}/meals/bulk")
+    @Operation(summary = "Add multiple meals to order")
+    @ApiResponse(responseCode = "200", description = "Meals added successfully")
+    @ApiResponse(responseCode = "404", description = "Order or meals not found")
+    public ResponseEntity<Order> bulkAddMealsToOrder(
+            @PathVariable @Min(1) int id,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Object with list of meal IDs",
+                    required = true)
+            @Valid @RequestBody Map<String, List<@Min(1) Integer>> request) {
+
+        List<Integer> mealIds = request.get("mealIds");
+        if (mealIds == null || mealIds.isEmpty()) {
+            throw new BadRequestException("Meal IDs list cannot be empty");
+        }
+
+        Order order = orderService.addMealsToOrder(id, mealIds);
+        return ResponseEntity.ok(order);
     }
 
     @Operation(summary = "Delete order", description = "Deletes an existing order")
