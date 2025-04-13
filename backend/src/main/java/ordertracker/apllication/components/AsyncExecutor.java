@@ -13,7 +13,7 @@ public class AsyncExecutor {
     public void processTaskAsync(LogTask task) {
         try {
             task.setStatus("PROCESSING");
-            Thread.sleep(300000);
+            Thread.sleep(10000);
 
             Path filePath = Paths.get("logs_" + task.getId() + ".txt");
             Files.write(filePath, ("Лог для " + task.getId()).getBytes());
