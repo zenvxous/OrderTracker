@@ -6,9 +6,11 @@ import {
   fetchOrders, 
   addMealToOrder, 
   removeMealFromOrder,
-  addMultipleMealsToOrder
+  addMultipleMealsToOrder,
+  updateOrderStatus,
+  deleteOrder
 } from '../api/orderApi';
-import { PlusOutlined, DeleteOutlined, ShoppingOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, ShoppingOutlined, EditOutlined } from '@ant-design/icons';
 
 const OrdersMealsPage = () => {
   const queryClient = useQueryClient();
@@ -16,6 +18,7 @@ const OrdersMealsPage = () => {
   const [selectedMeals, setSelectedMeals] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBulkAddModalOpen, setIsBulkAddModalOpen] = useState(false);
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
 
   // Загрузка данных
   const { data: orders, isLoading } = useQuery({
@@ -60,12 +63,34 @@ const OrdersMealsPage = () => {
     }
   });
 
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ orderId, status }) => updateOrderStatus(orderId, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['orders-with-meals']);
+      message.success('Status updated!');
+      setIsStatusModalOpen(false);
+    }
+  });
+
+  const deleteOrderMutation = useMutation({
+    mutationFn: (orderId) => deleteOrder(orderId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['orders-with-meals']);
+      message.success('Order deleted!');
+    }
+  });
+
   const statusColors = {
-    'COMPLETED': '#52c41a',
-    'CANCELLED': '#f5222d',
+    'READY': '#52c41a',
     'COOKING': '#fa8c16',
-    'PENDING': '#1890ff'
+    'ACCEPTED': '#1890ff'
   };
+
+  const statusOptions = [
+    { value: 'READY', label: 'Ready' },
+    { value: 'COOKING', label: 'Cooking' },
+    { value: 'ACCEPTED', label: 'Accepted' }
+  ];
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: 24 }}>
@@ -78,13 +103,15 @@ const OrdersMealsPage = () => {
           justifyContent: 'space-between', 
           alignItems: 'center',
           marginBottom: 24,
-          padding: '0 16px'
+          padding: '0 16px',
+          paddingTop: 16 // Добавлен отступ сверху
         }}>
           <h2 style={{ margin: 0 }}>Order Management</h2>
           <Button 
             type="primary" 
             icon={<ShoppingOutlined />}
             onClick={() => orders?.length > 0 && setIsBulkAddModalOpen(true)}
+            style={{ marginTop: 16 }} // Добавлен отступ сверху для кнопки
           >
             Add Meals
           </Button>
@@ -101,28 +128,48 @@ const OrdersMealsPage = () => {
                 boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
                 borderRadius: 8,
                 transition: 'all 0.3s',
+                display: 'flex',
+                flexDirection: 'column',
+                height: '100%', // Фиксированная высота карточки
                 ':hover': {
                   boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
                 }
               }}
+              bodyStyle={{
+                display: 'flex',
+                flexDirection: 'column',
+                flexGrow: 1,
+                padding: 16
+              }}
               title={
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>Order #{order.id}</span>
-                  <Tag 
-                    color={statusColors[order.status]} 
-                    style={{ 
-                      border: 'none',
-                      fontWeight: 500,
-                      borderRadius: 12,
-                      padding: '0 12px'
-                    }}
-                  >
-                    {order.status}
-                  </Tag>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Tag 
+                      color={statusColors[order.status]} 
+                      style={{ 
+                        border: 'none',
+                        fontWeight: 500,
+                        borderRadius: 12,
+                        padding: '0 12px'
+                      }}
+                    >
+                      {order.status}
+                    </Tag>
+                    <Button 
+                      size="small" 
+                      type="text" 
+                      icon={<EditOutlined />} 
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        setIsStatusModalOpen(true);
+                      }}
+                    />
+                  </div>
                 </div>
               }
             >
-              <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 16, flexGrow: 1 }}>
                 <div style={{ 
                   display: 'flex', 
                   justifyContent: 'space-between',
@@ -141,72 +188,87 @@ const OrdersMealsPage = () => {
                     ${order.meals?.reduce((sum, meal) => sum + meal.price, 0).toFixed(2)}
                   </span>
                 </div>
-              </div>
 
-              <Divider style={{ margin: '16px 0' }} />
+                <Divider style={{ margin: '16px 0' }} />
 
-              <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                {order.meals?.map(meal => (
-                  <div 
-                    key={meal.id} 
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '8px 0',
-                      borderBottom: '1px solid #f0f0f0'
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 500 }}>{meal.name}</div>
-                      <div style={{ color: '#8c8c8c', fontSize: 12 }}>
-                        ${meal.price.toFixed(2)}
-                      </div>
-                    </div>
-                    <Popconfirm
-                      title="Remove this meal?"
-                      onConfirm={() => removeMealMutation.mutate({ 
-                        orderId: order.id, 
-                        mealId: meal.id 
-                      })}
+                <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 16 }}>
+                  {order.meals?.map(meal => (
+                    <div 
+                      key={meal.id} 
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '8px 0',
+                        borderBottom: '1px solid #f0f0f0'
+                      }}
                     >
-                      <Button 
-                        size="small" 
-                        type="text" 
-                        danger 
-                        icon={<DeleteOutlined />}
-                        style={{ color: '#ff4d4f' }}
-                      />
-                    </Popconfirm>
-                  </div>
-                ))}
+                      <div>
+                        <div style={{ fontWeight: 500 }}>{meal.name}</div>
+                        <div style={{ color: '#8c8c8c', fontSize: 12 }}>
+                          ${meal.price.toFixed(2)}
+                        </div>
+                      </div>
+                      <Popconfirm
+                        title="Remove this meal?"
+                        onConfirm={() => removeMealMutation.mutate({ 
+                          orderId: order.id, 
+                          mealId: meal.id 
+                        })}
+                      >
+                        <Button 
+                          size="small" 
+                          type="text" 
+                          danger 
+                          icon={<DeleteOutlined />}
+                          style={{ color: '#ff4d4f' }}
+                        />
+                      </Popconfirm>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              <Divider style={{ margin: '16px 0' }} />
-
-              <div style={{ display: 'flex', gap: 8 }}>
-                <Button 
-                  type="text"
-                  icon={<PlusOutlined />}
-                  onClick={() => {
-                    setSelectedOrder(order);
-                    setIsAddModalOpen(true);
-                  }}
-                  style={{ flex: 1 }}
+              <div style={{ marginTop: 'auto' }}> {/* Кнопки всегда внизу */}
+                <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                  <Button 
+                    type="text"
+                    icon={<PlusOutlined />}
+                    onClick={() => {
+                      setSelectedOrder(order);
+                      setIsAddModalOpen(true);
+                    }}
+                    style={{ flex: 1 }}
+                  >
+                    Add meal
+                  </Button>
+                  <Button 
+                    type="text"
+                    icon={<PlusOutlined />}
+                    onClick={() => {
+                      setSelectedOrder(order);
+                      setIsBulkAddModalOpen(true);
+                    }}
+                    style={{ flex: 1 }}
+                  >
+                    Add multiple
+                  </Button>
+                </div>
+                <Popconfirm
+                  title="Are you sure to delete this order?"
+                  onConfirm={() => deleteOrderMutation.mutate(order.id)}
+                  okText="Yes"
+                  cancelText="No"
                 >
-                  Add meal
-                </Button>
-                <Button 
-                  type="text"
-                  icon={<PlusOutlined />}
-                  onClick={() => {
-                    setSelectedOrder(order);
-                    setIsBulkAddModalOpen(true);
-                  }}
-                  style={{ flex: 1 }}
-                >
-                  Add multiple
-                </Button>
+                  <Button 
+                    danger
+                    type="text"
+                    icon={<DeleteOutlined />}
+                    style={{ width: '100%' }}
+                  >
+                    Delete Order
+                  </Button>
+                </Popconfirm>
               </div>
             </Card>
           ))}
@@ -341,6 +403,48 @@ const OrdersMealsPage = () => {
               disabled={selectedMeals.length === 0}
             >
               Add {selectedMeals.length} meal{selectedMeals.length !== 1 ? 's' : ''}
+            </Button>
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Модальное окно для изменения статуса заказа */}
+      <Modal
+        title={`Change status for order #${selectedOrder?.id}`}
+        open={isStatusModalOpen}
+        onCancel={() => setIsStatusModalOpen(false)}
+        footer={null}
+        width={480}
+        bodyStyle={{ padding: '24px 24px 0' }}
+      >
+        <Form
+          initialValues={{ status: selectedOrder?.status }}
+          onFinish={(values) => {
+            updateStatusMutation.mutate({
+              orderId: selectedOrder.id,
+              status: values.status
+            });
+          }}
+        >
+          <Form.Item
+            name="status"
+            rules={[{ required: true, message: 'Please select a status!' }]}
+          >
+            <Select
+              placeholder="Select status"
+              options={statusOptions}
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+          <Form.Item style={{ marginBottom: 0 }}>
+            <Button 
+              type="primary" 
+              htmlType="submit"
+              loading={updateStatusMutation.isLoading}
+              block
+              size="large"
+            >
+              Update Status
             </Button>
           </Form.Item>
         </Form>

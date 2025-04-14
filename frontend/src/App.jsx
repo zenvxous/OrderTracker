@@ -4,7 +4,6 @@ import { Layout } from "antd";
 import Navbar from "./components/navbar";
 import CustomersPage from "./pages/CustomersPage";
 import MealsPage from "./pages/MealsPage";
-import OrdersPage from "./pages/OrdersPage";
 import OrdersMealsPage from "./pages/OrderMealsPage";
 import CustomersOrdersPage from "./pages/CustomerOrdersPage";
 
@@ -23,9 +22,8 @@ function App() {
             <Routes>
               <Route path="/customers" element={<CustomersPage />} />
               <Route path="/meals" element={<MealsPage />} />
-              <Route path="/orders" element={<OrdersPage />} />
-              <Route path="/ordermeals" element={<OrdersMealsPage />} />
-              <Route path="/customerorders" element={<CustomersOrdersPage />} />
+              <Route path="/orders" element={<OrdersMealsPage />} />
+              <Route path="/customer" element={<CustomersOrdersPage />} />
             </Routes>
           </Content>
         </Layout>
