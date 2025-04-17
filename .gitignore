@@ -1,4 +1,4 @@
-/target/
+/target
 !.mvn/wrapper/maven-wrapper.jar
 
 ### STS ###
@@ -199,3 +199,5 @@ README.html
 *.iml
 .idea
 .exercism
+backend/docker-compose.yaml
+backend/src/main/resources/META-INF/MANIFEST.MF
